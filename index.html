@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="blinkitApp">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blinkit - Everything delivered in minutes</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts: Outfit & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body ng-controller="BlinkitController" class="bg-light">
+
+    <!-- Header / Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3 header-nav">
+        <div class="container">
+            <!-- Brand Logo -->
+            <a class="navbar-brand logo-section me-4" href="#" ng-click="selectedCategory = ''; searchQuery = ''">
+                <span class="logo">blink<span class="logo-green">it</span></span>
+            </a>
+
+            <!-- Location Picker -->
+            <div class="location-box d-none d-md-flex align-items-center cursor-pointer me-4" ng-click="openAddressModal()">
+                <div class="location-icon text-green me-2">
+                    <i class="fas fa-location-dot fs-4"></i>
+                </div>
+                <div>
+                    <div class="location-title text-dark">Delivery in 8 minutes</div>
+                    <div class="location-subtitle text-muted">{{ user.address ? user.address.substring(0, 30) + '...' : 'Select Address' }} <i class="fas fa-caret-down ms-1"></i></div>
+                </div>
+            </div>
+
+            <!-- Global Search -->
+            <div class="search-bar flex-grow-1 mx-lg-4 my-2 my-lg-0 position-relative">
+                <i class="fas fa-search search-icon position-absolute text-muted"></i>
+                <input type="text" class="form-control rounded-3 py-2 ps-5" placeholder='Search "milk", "veg", "chips" or categories...' ng-model="searchQuery">
+                <i class="fas fa-times clear-search position-absolute text-muted cursor-pointer" ng-show="searchQuery" ng-click="searchQuery = ''"></i>
+            </div>
+
+            <!-- Actions: Login & Cart -->
+            <div class="header-actions d-flex align-items-center gap-3 ms-lg-3">
+                <!-- User Profile Dropdown -->
+                <div class="dropdown" ng-if="user.isLoggedIn">
+                    <button class="btn btn-outline-dark border-0 fw-semibold px-3 py-2 dropdown-toggle d-flex align-items-center gap-2" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle fs-5 text-green"></i>
+                        <span>{{ user.name }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item py-2" href="#" ng-click="openAddressModal()"><i class="fas fa-map-marker-alt me-2 text-muted"></i> Manage Address</a></li>
+                        <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#orderHistoryModal"><i class="fas fa-history me-2 text-muted"></i> Order History</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2 text-danger" href="#" ng-click="logout()"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                    </ul>
+                </div>
+                <button class="btn login-trigger-btn fw-bold px-3 py-2" ng-if="!user.isLoggedIn" ng-click="openLoginModal()">Login</button>
+
+                <!-- Cart Toggle Button -->
+                <button class="btn btn-green cart-btn d-flex align-items-center gap-2 px-3 py-2 text-white fw-bold shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartSidebar" aria-controls="cartSidebar">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="d-none d-sm-inline">My Cart</span>
+                    <span class="badge bg-yellow text-dark rounded-pill fw-extrabold" ng-if="getCartCount() > 0">{{ getCartCount() }} items</span>
+                    <span class="badge bg-yellow text-dark rounded-pill" ng-if="getCartCount() == 0">Empty</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="container py-4">
+
+        <!-- Promotions & Offers Section -->
+        <section class="mb-4">
+            <div class="row g-3">
+                <!-- Main Promo Card -->
+                <div class="col-lg-8">
+                    <div class="promo-card bg-emerald text-white rounded-4 p-4 p-md-5 d-flex justify-content-between align-items-center position-relative overflow-hidden shadow-sm">
+                        <div class="promo-content position-relative z-index-2">
+                            <span class="badge bg-yellow text-dark mb-3 px-3 py-2 fs-7 fw-bold text-uppercase">Special Monsoon Offer</span>
+                            <h2 class="display-6 fw-extrabold mb-2 text-white">Pharmacy & Essentials at your Doorstep</h2>
+                            <p class="fs-6 opacity-90 mb-4">Get medicines, fresh organic foods, and dairy products delivered in 8 minutes flat.</p>
+                            <button class="btn btn-light btn-yellow text-dark px-4 py-2.5 fw-extrabold border-0 rounded-3 hover-scale shadow" ng-click="selectedCategory = 'Vegetables & Fruits'">Order Fresh Now <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                        <div class="promo-icon d-none d-md-block opacity-20 text-white font-huge">💊</div>
+                    </div>
+                </div>
+
+                <!-- Active Coupons Banner -->
+                <div class="col-lg-4">
+                    <div class="card border-0 rounded-4 shadow-sm bg-yellow-soft h-100 p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <h4 class="fw-extrabold text-dark-emerald mb-3"><i class="fas fa-ticket-alt me-2"></i> Available Coupons</h4>
+                            <div class="coupon-list d-flex flex-column gap-2.5">
+                                <div class="coupon-item bg-white p-3 rounded-3 border border-dashed-emerald d-flex justify-content-between align-items-center" ng-repeat="coupon in coupons">
+                                    <div>
+                                        <span class="badge bg-emerald text-white fw-bold mb-1">{{ coupon.code }}</span>
+                                        <div class="text-muted small-text">{{ coupon.description }}</div>
+                                    </div>
+                                    <button class="btn btn-outline-green btn-sm px-2.5 py-1 fw-bold" ng-click="applyCoupon(coupon.code)">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3" ng-if="appliedCoupon">
+                            <div class="alert alert-success m-0 py-2 px-3 fs-7 border-0 rounded-3 text-emerald d-flex justify-content-between align-items-center shadow-sm">
+                                <span>Applied: <strong>{{ appliedCoupon.code }}</strong></span>
+                                <button class="btn-close border-0 btn-sm bg-transparent" ng-click="removeCoupon()"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Categories Slider/Grid -->
+        <section class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="section-title mb-0">Shop by Category</h3>
+                <button class="btn text-green fw-bold p-0 border-0" ng-click="selectedCategory = ''">Clear Filters</button>
+            </div>
+            <div class="category-slider d-flex gap-3 overflow-auto pb-2 scrollbar-hidden">
+                <div class="category-card flex-shrink-0 text-center cursor-pointer rounded-4"
+                     ng-repeat="cat in categories"
+                     ng-click="setCategory(cat.name)"
+                     ng-class="{'active border-emerald shadow-sm bg-emerald-light': selectedCategory === cat.name}">
+                    <div class="category-icon mb-2 rounded-circle shadow-sm">{{ cat.icon }}</div>
+                    <div class="category-name text-wrap">{{ cat.name }}</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Product Listings -->
+        <section class="mb-5">
+            <!-- Header for current view -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="section-title mb-0">
+                    {{ selectedCategory ? selectedCategory : (searchQuery ? 'Search Results for "' + searchQuery + '"' : 'Popular Products') }}
+                </h3>
+                <span class="text-muted fs-7 fw-semibold" ng-if="filtered.length > 0">{{ filtered.length }} items available</span>
+            </div>
+
+            <!-- Empty State for filters -->
+            <div class="text-center py-5 bg-white rounded-4 border shadow-sm mb-4" ng-if="filtered.length === 0">
+                <span class="fs-1">🔍</span>
+                <h4 class="mt-3 fw-bold text-dark">No products found</h4>
+                <p class="text-muted">Try modifying your search queries or clearing your category filters.</p>
+                <button class="btn btn-green text-white px-4 py-2 rounded-3 mt-2 fw-bold" ng-click="selectedCategory = ''; searchQuery = ''">Clear Filters</button>
+            </div>
+
+            <!-- Product Grid -->
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3">
+                <div class="col" ng-repeat="p in products | filter:filterProducts as filtered">
+                    <div class="card h-100 product-item border-0 shadow-sm rounded-4 position-relative overflow-hidden">
+                        <!-- Rating Badge -->
+                        <span class="badge bg-yellow text-dark position-absolute start-3 top-3 px-2.5 py-1.5 fw-bold text-sm shadow-sm"><i class="fas fa-star text-dark-yellow me-1"></i>{{ p.rating }}</span>
+                        
+                        <!-- Product Graphic -->
+                        <div class="product-image-container d-flex align-items-center justify-content-center pt-5 pb-3">
+                            <span class="product-emoji display-4">{{ p.icon }}</span>
+                        </div>
+
+                        <!-- Product Content -->
+                        <div class="card-body px-3 py-2 d-flex flex-column justify-content-between">
+                            <div>
+                                <span class="time-tag text-uppercase fw-extrabold"><i class="far fa-clock me-1"></i>8 mins</span>
+                                <h6 class="product-title text-dark fw-bold mb-1 mt-1 text-truncate-2">{{ p.name }}</h6>
+                                <p class="text-muted small mb-3">{{ p.weight }}</p>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-auto border-top pt-2.5">
+                                <span class="product-price fw-extrabold text-dark">₹{{ p.price }}</span>
+                                
+                                <!-- Add/Quantity Buttons -->
+                                <div>
+                                    <button class="btn btn-outline-green btn-add rounded-3 px-3 py-1.5 fw-bold" ng-if="getProductQty(p.id) === 0" ng-click="addToCart(p)">ADD</button>
+                                    <div class="qty-btn-group d-flex align-items-center gap-2 px-2 py-1 bg-green rounded-3" ng-if="getProductQty(p.id) > 0">
+                                        <button class="btn qty-control-btn btn-sm text-white border-0 p-0 fw-bold" ng-click="removeFromCart(p)">-</button>
+                                        <span class="text-white fw-bold px-1">{{ getProductQty(p.id) }}</span>
+                                        <button class="btn qty-control-btn btn-sm text-white border-0 p-0 fw-bold" ng-click="addToCart(p)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer bg-white border-top py-5 mt-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <h4 class="logo mb-3">blink<span class="logo-green">it</span></h4>
+                    <p class="text-muted small">India's last-minute app. Delivering fresh vegetables, dairy products, bakery, snacks, groceries, and essential medicines at your doorstep in minutes.</p>
+                    <div class="social-links d-flex gap-3 mt-3">
+                        <a href="#" class="social-icon text-muted"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-icon text-muted"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-icon text-muted"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-icon text-muted"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="col-md-2 offset-md-1 col-6">
+                    <h6 class="fw-bold mb-3 text-dark">Useful Links</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small-text">
+                        <li><a href="#" class="text-muted text-decoration-none hover-green">About Us</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green">Careers</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green">Partner with us</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green">Store Locations</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2 col-6">
+                    <h6 class="fw-bold mb-3 text-dark">Top Categories</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small-text">
+                        <li><a href="#" class="text-muted text-decoration-none hover-green" ng-click="selectedCategory = 'Vegetables & Fruits'">Vegetables & Fruits</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green" ng-click="selectedCategory = 'Dairy & Breakfast'">Dairy & Breakfast</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green" ng-click="selectedCategory = 'Munchies'">Munchies & Snacks</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none hover-green" ng-click="selectedCategory = 'Cold Drinks'">Cold Drinks</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6 class="fw-bold mb-3 text-dark">Download Our App</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <button class="btn btn-dark text-start rounded-3 d-flex align-items-center gap-3 py-2 px-3"><i class="fab fa-apple fs-4"></i><div><div class="tiny-text opacity-70">Download on the</div><div class="small fw-bold">App Store</div></div></button>
+                        <button class="btn btn-dark text-start rounded-3 d-flex align-items-center gap-3 py-2 px-3"><i class="fab fa-google-play fs-4"></i><div><div class="tiny-text opacity-70">Get it on</div><div class="small fw-bold">Google Play</div></div></button>
+                    </div>
+                </div>
+            </div>
+            <div class="border-top mt-4 pt-4 text-center">
+                <p class="text-muted small mb-0">© 2026 Blinkit Commerce Private Limited. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Sidebar (Bootstrap Offcanvas) -->
+    <div class="offcanvas offcanvas-end border-0" tabindex="-1" id="cartSidebar" aria-labelledby="cartSidebarLabel">
+        <div class="offcanvas-header border-bottom py-3">
+            <h5 class="offcanvas-title fw-bold" id="cartSidebarLabel">My Cart</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        
+        <div class="offcanvas-body bg-light d-flex flex-column p-0">
+            <!-- Empty Cart -->
+            <div class="text-center py-5 px-4 flex-grow-1 d-flex flex-column justify-content-center align-items-center" ng-if="cart.length === 0">
+                <div class="empty-cart-graphic bg-white rounded-circle shadow-sm mb-4 p-4">🛒</div>
+                <h5 class="fw-bold text-dark">Your cart is empty</h5>
+                <p class="text-muted small-text mb-4">No products in your basket. Add products to get deliveries in 8 minutes.</p>
+                <button class="btn btn-green text-white px-4 py-2 fw-bold rounded-3 shadow" data-bs-dismiss="offcanvas">Start Shopping</button>
+            </div>
+
+            <!-- Active Cart Items -->
+            <div class="cart-items-list flex-grow-1 overflow-auto p-3" ng-if="cart.length > 0">
+                <div class="card border-0 shadow-sm rounded-3 p-3 mb-2 d-flex flex-row align-items-center gap-3 bg-white" ng-repeat="item in cart">
+                    <span class="fs-2">{{ item.product.icon }}</span>
+                    <div class="flex-grow-1 min-width-0">
+                        <h6 class="text-truncate text-dark small fw-bold mb-0.5">{{ item.product.name }}</h6>
+                        <span class="text-muted small-text">{{ item.product.weight }}</span>
+                        <div class="text-dark small fw-bold mt-1">₹{{ item.product.price }} x {{ item.quantity }} = ₹{{ item.product.price * item.quantity }}</div>
+                    </div>
+                    <!-- Incrementer Button inside Cart -->
+                    <div class="qty-btn-group d-flex align-items-center gap-2 px-2 py-1 bg-green rounded-3">
+                        <button class="btn qty-control-btn btn-sm text-white border-0 p-0 fw-bold" ng-click="removeFromCart(item.product)">-</button>
+                        <span class="text-white fw-bold px-1">{{ item.quantity }}</span>
+                        <button class="btn qty-control-btn btn-sm text-white border-0 p-0 fw-bold" ng-click="addToCart(item.product)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cart Footer with Pricing breakdown -->
+            <div class="bg-white border-top p-3 shadow-lg mt-auto" ng-if="cart.length > 0">
+                <!-- Promo Code Box inside Cart -->
+                <div class="promo-box mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control text-uppercase text-green fw-bold bg-light border-0 py-2.5 px-3" placeholder="Enter Promo Code" ng-model="couponCodeInput">
+                        <button class="btn btn-green px-4 text-white fw-bold" ng-click="applyCoupon(couponCodeInput)">Apply</button>
+                    </div>
+                    <div class="coupon-msg-container mt-1.5" ng-if="couponMessage">
+                        <div class="small-text d-flex align-items-center justify-content-between px-2 py-1.5 rounded-3" ng-class="{'bg-success-subtle text-success': couponSuccess, 'bg-danger-subtle text-danger': !couponSuccess}">
+                            <span>{{ couponMessage }}</span>
+                            <a href="#" class="text-decoration-none fw-bold" ng-if="couponSuccess" ng-click="removeCoupon()"><i class="fas fa-trash-alt"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing Details -->
+                <h6 class="fw-bold mb-2.5 text-dark border-bottom pb-2">Bill Details</h6>
+                <div class="bill-breakdown d-flex flex-column gap-2 small-text text-muted mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Items Subtotal</span>
+                        <span class="text-dark">₹{{ getItemTotal() }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between" ng-if="getDiscountAmount() > 0">
+                        <span>Coupon Discount ({{ appliedCoupon.code }})</span>
+                        <span class="text-danger">-₹{{ getDiscountAmount() }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Handling Charges</span>
+                        <span class="text-dark">₹{{ getHandlingFee() }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Delivery Fee</span>
+                        <span ng-class="{'text-success fw-bold': getDeliveryCharge() === 0, 'text-dark': getDeliveryCharge() > 0}">
+                            {{ getDeliveryCharge() === 0 ? 'FREE' : '₹' + getDeliveryCharge() }}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between border-top pt-2.5 grand-total">
+                        <span class="text-dark fw-bold">Grand Total</span>
+                        <span class="text-dark-emerald fw-extrabold fs-5">₹{{ getGrandTotal() }}</span>
+                    </div>
+                </div>
+
+                <!-- Checkout Trigger Button -->
+                <button class="btn btn-green w-100 py-3 rounded-3 d-flex justify-content-between align-items-center text-white fw-bold shadow hover-scale" ng-click="openCheckout()">
+                    <span>₹{{ getGrandTotal() }} Total</span>
+                    <span class="proceed-text">Proceed to Checkout <i class="fas fa-chevron-right ms-1"></i></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-emerald text-white p-4">
+                    <h5 class="modal-title fw-bold" id="loginModalLabel">Login / Register to Blinkit</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-white">
+                    <form ng-submit="registerUser()">
+                        <div class="mb-3">
+                            <label for="loginName" class="form-label small fw-bold text-muted">Full Name</label>
+                            <input type="text" class="form-control py-2.5 bg-light border-0" id="loginName" ng-model="loginForm.name" placeholder="Enter your full name" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="loginEmail" class="form-label small fw-bold text-muted">Email Address</label>
+                            <input type="email" class="form-control py-2.5 bg-light border-0" id="loginEmail" ng-model="loginForm.email" placeholder="name@example.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-green w-100 py-3 text-white fw-bold rounded-3 shadow-sm">
+                            <span>Register & Sign In</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Address Picker Modal -->
+    <div class="modal fade" id="addressModal" tabindex="-1" aria-labelledby="addressModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-emerald text-white p-4">
+                    <h5 class="modal-title fw-bold" id="addressModalLabel"><i class="fas fa-map-marker-alt me-2"></i> Configure Shipping Address</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-white">
+                    <form ng-submit="submitAddress()">
+                        <div class="mb-3">
+                            <label for="addressInput" class="form-label small fw-bold text-muted">Street Address & Landmark</label>
+                            <textarea class="form-control bg-light border-0" id="addressInput" rows="2" ng-model="addressForm.address" placeholder="Flat No, Wing, Landmark" required></textarea>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-7">
+                                <label for="cityInput" class="form-label small fw-bold text-muted">City / State</label>
+                                <input type="text" class="form-control py-2.5 bg-light border-0" id="cityInput" ng-model="addressForm.city" placeholder="e.g. Bangalore, KA" required>
+                            </div>
+                            <div class="col-5">
+                                <label for="zipInput" class="form-label small fw-bold text-muted">Zip Code</label>
+                                <input type="text" class="form-control py-2.5 bg-light border-0" id="zipInput" ng-model="addressForm.zip" placeholder="e.g. 560102" pattern="[0-9]{6}" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-green w-100 py-3 text-white fw-bold rounded-3 shadow-sm">Save & Update Delivery Time</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-emerald text-white p-4">
+                    <h5 class="modal-title fw-bold" id="checkoutModalLabel"><i class="fas fa-shopping-bag me-2"></i> Checkout Summary</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-4">
+                        <!-- Left Side: Address and Payment Options -->
+                        <div class="col-lg-7">
+                            <!-- Shipping Details -->
+                            <div class="card border-0 rounded-3 shadow-sm p-4 mb-3 bg-white">
+                                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-map-marker-alt text-green me-2"></i> Delivering To</h6>
+                                <p class="small text-dark mb-1"><strong>{{ user.name }}</strong> | {{ user.phone }}</p>
+                                <p class="small text-muted mb-0">{{ user.address }}, {{ user.city }} - {{ user.zip }}</p>
+                            </div>
+
+                            <!-- Payment Options -->
+                            <div class="card border-0 rounded-3 shadow-sm p-4 bg-white">
+                                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-wallet text-green me-2"></i> Select Payment Mode</h5>
+                                <div class="payment-options-list d-flex flex-column gap-2">
+                                    <label class="payment-card border p-3 rounded-3 d-flex align-items-center gap-3 cursor-pointer" ng-class="{'border-emerald bg-emerald-light': selectedPayment === 'upi'}">
+                                        <input type="radio" name="paymentOption" value="upi" ng-model="selectedPayment" class="form-check-input text-green">
+                                        <i class="fab fa-google-pay fs-3 text-primary"></i>
+                                        <div>
+                                            <div class="small fw-bold text-dark">UPI (GooglePay / PhonePe)</div>
+                                            <div class="small-text text-muted">Instant validation and cashback checks</div>
+                                        </div>
+                                    </label>
+                                    <label class="payment-card border p-3 rounded-3 d-flex align-items-center gap-3 cursor-pointer" ng-class="{'border-emerald bg-emerald-light': selectedPayment === 'card'}">
+                                        <input type="radio" name="paymentOption" value="card" ng-model="selectedPayment" class="form-check-input text-green">
+                                        <i class="far fa-credit-card fs-4 text-warning"></i>
+                                        <div>
+                                            <div class="small fw-bold text-dark">Credit / Debit Card</div>
+                                            <div class="small-text text-muted">All Visa, Mastercard & RuPay supported</div>
+                                        </div>
+                                    </label>
+                                    <label class="payment-card border p-3 rounded-3 d-flex align-items-center gap-3 cursor-pointer" ng-class="{'border-emerald bg-emerald-light': selectedPayment === 'cod'}">
+                                        <input type="radio" name="paymentOption" value="cod" ng-model="selectedPayment" class="form-check-input text-green">
+                                        <i class="fas fa-hand-holding-dollar fs-4 text-success"></i>
+                                        <div>
+                                            <div class="small fw-bold text-dark">Cash on Delivery (COD)</div>
+                                            <div class="small-text text-muted">Pay at doorstep upon arrival</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Order Summary -->
+                        <div class="col-lg-5">
+                            <div class="card border-0 rounded-3 shadow-sm p-4 h-100 bg-white d-flex flex-column justify-content-between">
+                                <div>
+                                    <h6 class="fw-bold mb-3 text-dark border-bottom pb-2">Invoice Summary</h6>
+                                    <div class="checkout-items-list mb-3 d-flex flex-column gap-2" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="d-flex justify-content-between small-text" ng-repeat="item in cart">
+                                            <span class="text-truncate me-2 text-muted" style="max-width: 160px;">{{ item.product.name }} (x{{ item.quantity }})</span>
+                                            <span class="text-dark fw-semibold">₹{{ item.product.price * item.quantity }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="border-top pt-3 d-flex flex-column gap-2 small-text text-muted mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Subtotal</span>
+                                            <span class="text-dark">₹{{ getItemTotal() }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between" ng-if="getDiscountAmount() > 0">
+                                            <span>Discount</span>
+                                            <span class="text-danger">-₹{{ getDiscountAmount() }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Handling Fees</span>
+                                            <span class="text-dark">₹{{ getHandlingFee() }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Delivery Charge</span>
+                                            <span>{{ getDeliveryCharge() === 0 ? 'FREE' : '₹' + getDeliveryCharge() }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="border-top pt-3 mb-3 d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-dark">Amount Payable</span>
+                                        <span class="text-dark-emerald fw-extrabold fs-4">₹{{ getGrandTotal() }}</span>
+                                    </div>
+                                    <button class="btn btn-green w-100 py-3 rounded-3 text-white fw-bold shadow hover-scale" ng-click="triggerRazorpay()">Pay with Razorpay (Mock)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Live Tracker Modal -->
+    <div class="modal fade" id="trackerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="trackerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-emerald text-white p-4">
+                    <h5 class="modal-title fw-bold" id="trackerModalLabel"><i class="fas fa-truck-ramp-box me-2"></i> Live Delivery Tracking</h5>
+                    <button type="button" class="btn-close btn-close-white" ng-click="closeTracker()" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Tracker Graphic Banner -->
+                    <div class="card border-0 rounded-3 shadow-sm p-4 bg-white mb-4">
+                        <div class="row align-items-center text-center text-md-start">
+                            <div class="col-md-7 mb-3 mb-md-0">
+                                <span class="badge bg-emerald text-white px-3 py-2 mb-2 rounded-3 text-uppercase">Arriving in {{ formatTime(deliveryTimeLeft) }}</span>
+                                <h3 class="fw-extrabold text-dark mb-1">Delivering Order {{ activeOrder.id }}</h3>
+                                <p class="text-muted small-text mb-0">Delivery Partner is packaging fresh organic items at the nearest warehouse.</p>
+                            </div>
+                            <div class="col-md-5 d-flex justify-content-center align-items-center">
+                                <div class="delivery-hero-graphic d-flex align-items-center gap-3">
+                                    <span class="fs-1 animated-scooter">🛵</span>
+                                    <div class="glowing-dot position-relative"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Stepper -->
+                    <div class="card border-0 rounded-3 shadow-sm p-4 bg-white mb-4">
+                        <h6 class="fw-bold mb-4 text-dark border-bottom pb-2">Order Milestones</h6>
+                        <div class="stepper-horizontal d-flex justify-content-between position-relative mb-2">
+                            <!-- Progress Connection line background -->
+                            <div class="step-connector position-absolute w-100"></div>
+
+                            <div class="step-item d-flex flex-column align-items-center flex-grow-1 position-relative z-index-2"
+                                 ng-repeat="stage in deliveryStages"
+                                 ng-class="stage.status">
+                                <div class="step-icon mb-2 rounded-circle d-flex align-items-center justify-content-center shadow-sm">
+                                    <i class="fas {{ stage.icon }} fs-6"></i>
+                                </div>
+                                <div class="step-title fw-bold text-dark small">{{ stage.name }}</div>
+                                <div class="step-description text-muted tiny-text d-none d-md-block">{{ stage.description }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Invoice Summary inside Tracker -->
+                    <div class="card border-0 rounded-3 shadow-sm p-4 bg-white">
+                        <h6 class="fw-bold mb-3 text-dark border-bottom pb-2">Item Details</h6>
+                        <div class="row g-3">
+                            <div class="col-md-8 border-end-md">
+                                <div class="d-flex flex-column gap-2" style="max-height: 150px; overflow-y: auto;">
+                                    <div class="d-flex justify-content-between small-text text-muted" ng-repeat="item in activeOrder.items">
+                                        <span>{{ item.name }} (x{{ item.quantity }})</span>
+                                        <span class="text-dark font-medium">₹{{ item.price * item.quantity }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-md-end text-center d-flex flex-column justify-content-center">
+                                <div class="text-muted small-text">Grand Total Paid</div>
+                                <div class="text-dark-emerald fw-extrabold fs-3">₹{{ activeOrder.total }}</div>
+                                <div class="text-muted tiny-text mt-1">Payment Method: {{ selectedPayment | uppercase }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top p-3 justify-content-between">
+                    <span class="small-text text-muted"><i class="fas fa-shield-alt text-success me-1"></i> Blinkit Safe Delivery Guarantee</span>
+                    <button class="btn btn-outline-green px-4 fw-bold" ng-click="closeTracker()">Minimize Tracker</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order History Modal -->
+    <div class="modal fade" id="orderHistoryModal" tabindex="-1" aria-labelledby="orderHistoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header bg-emerald text-white p-4">
+                    <h5 class="modal-title fw-bold" id="orderHistoryModalLabel"><i class="fas fa-history me-2"></i> Your Order History</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Empty State for History -->
+                    <div class="text-center py-5 bg-white rounded-3 shadow-sm" ng-if="orders.length === 0">
+                        <span class="fs-1">📦</span>
+                        <h5 class="fw-bold mt-2">No orders placed yet</h5>
+                        <p class="text-muted small">Place your first order to view it here.</p>
+                    </div>
+
+                    <!-- Orders List -->
+                    <div class="d-flex flex-column gap-3" ng-if="orders.length > 0">
+                        <div class="card border-0 rounded-3 shadow-sm p-4 bg-white" ng-repeat="order in orders">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div>
+                                    <span class="fw-extrabold text-dark fs-6">{{ order.id }}</span>
+                                    <span class="text-muted ms-3 small-text">{{ order.date }}</span>
+                                </div>
+                                <span class="badge" ng-class="{'bg-success-subtle text-success': order.status === 'Delivered' || order.status === 'Arrived', 'bg-warning-subtle text-warning': order.status !== 'Delivered' && order.status !== 'Arrived'}">
+                                    {{ order.status }}
+                                </span>
+                            </div>
+                            <div class="row align-items-center">
+                                <div class="col-md-8 mb-2 mb-md-0">
+                                    <div class="d-flex flex-wrap gap-2 text-muted small-text">
+                                        <span ng-repeat="item in order.items">
+                                            {{ item.name }} (x{{ item.quantity }}){{ !$last ? ',' : '' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end">
+                                    <div class="text-muted small-text">Total Price</div>
+                                    <div class="fw-extrabold text-dark fs-5">₹{{ order.total }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Razorpay Checkout SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- AngularJS Library -->
+    <script src="angular.min.js"></script>
+    <!-- Bootstrap Bundle JS -->
+    <script src="bootstrap.bundle.min.js"></script>
+    <!-- Custom Application JS -->
+    <script src="script.js"></script>
+</body>
+
+</html>
